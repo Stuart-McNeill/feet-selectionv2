@@ -7,14 +7,19 @@
 <style>
     body { margin: 0; background: #050505; color: #eee; font-family: 'Inter', -apple-system, sans-serif; overflow: hidden; }
     #ui { position: fixed; top: 15px; left: 15px; z-index: 100; display: flex; flex-direction: column; gap: 8px; width: 260px; background: rgba(15,15,15,0.95); padding: 18px; border-radius: 12px; border: 1px solid #333; box-shadow: 0 10px 40px rgba(0,0,0,0.6); backdrop-filter: blur(5px); max-height: 90vh; overflow-y: auto; }
+    
     .label { font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 1.2px; margin: 8px 0 4px 0; }
     .group { display: flex; gap: 4px; }
+    
     button { background: #2a2a2a; color: white; border: 1px solid #444; padding: 10px; border-radius: 6px; cursor: pointer; font-size: 11px; flex: 1; transition: 0.2s; font-weight: 500; }
     button:hover { background: #3a3a3a; border-color: #555; }
     button.active { background: #388e3c; border-color: #4caf50; box-shadow: 0 0 10px rgba(76, 175, 80, 0.3); }
+    
     input { background: #111; border: 1px solid #444; color: white; padding: 10px; border-radius: 6px; font-size: 12px; width: calc(100% - 22px); margin-bottom: 6px; outline: none; }
+    
     #status { position: fixed; top: 15px; right: 15px; background: #2e7d32; color: white; padding: 6px 14px; border-radius: 20px; font-size: 11px; font-weight: bold; border: 1px solid #4caf50; pointer-events: none; }
     #coords { position: fixed; bottom: 15px; left: 15px; background: rgba(0,0,0,0.85); padding: 8px 12px; border-radius: 6px; font-size: 11px; font-family: 'Courier New', monospace; border: 1px solid #333; color: #4caf50; pointer-events: none; }
+    
     hr { border: 0; border-top: 1px solid #333; margin: 10px 0; }
     #edit-panel { display: none; background: #1a1a1a; padding: 12px; border-radius: 8px; margin-top: 5px; border: 1px solid #333; }
     .danger-btn { background: #b71c1c; border-color: #d32f2f; }
@@ -54,8 +59,9 @@
     <button id="toggleEditBtn" style="background:#1565c0; border-color:#1976d2;">Manage Regions</button>
     
     <div id="edit-panel">
-        <input type="text" id="regionNameInput" placeholder="Region Name (e.g. Heel)">
+        <input type="text" id="regionNameInput" placeholder="Region Name">
         <button id="addRegionBtn" style="background:#0288d1; width:100%;">Create Box</button>
+        <button id="deleteRegionBtn" class="danger-btn" style="width:100%; margin-top:5px;">Delete Selected</button>
         <button id="exportMapBtn" style="background:#6a1b9a; width:100%; margin-top:8px;">Download Region Map</button>
         <div style="font-size: 9px; color: #777; margin-top: 10px; text-align: center;">
             T: Move | R: Rotate | S: Resize
@@ -77,7 +83,6 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
 
-// --- PRESET REGIONS ---
 const PRESET_REGIONS = [
   { name: "Left foot - Dorsal Hallux Toenail", pos: [-0.09020, 0.06905, 0.47595], rot: [0.00000, 0.17125, 0.00000], scale: [0.04911, 0.01155, 0.05000] },
   { name: "Left foot - Dorsal 1st Interphalangeal joint", pos: [-0.09714, 0.07657, 0.43621], rot: [0.00000, 0.17070, 0.00000], scale: [0.06834, 0.01107, 0.02876] },
@@ -96,8 +101,8 @@ const PRESET_REGIONS = [
 ];
 
 const urls = {
-    left: "https://stuart-mcneill.github.io/feet-selectionv2/LeftFoot.glb",
-    right: "https://stuart-mcneill.github.io/feet-selectionv2/RightFoot.glb"
+    left: "https://stuart-mcneill.github.io/3Dfootselection/Leftfoot.glb",
+    right: "https://stuart-mcneill.github.io/feet-selection/RightFoot.glb"
 };
 
 let scene, camera, renderer, controls, transformControls;
@@ -145,21 +150,34 @@ function init() {
     scene.add(markerGroup);
     scene.add(regionGroup);
 
-    // UI Bindings
-    document.getElementById("leftBtn").onclick = () => { if(currentFoot !== "left") { currentFoot = "left"; loadFoot(); } };
-    document.getElementById("rightBtn").onclick = () => { if(currentFoot !== "right") { currentFoot = "right"; loadFoot(); } };
+    // Initial Load
+    PRESET_REGIONS.forEach(data => addRegion(data.name, data.pos, data.rot, data.scale));
+
+    // UI
+    document.getElementById("leftBtn").onclick = () => { currentFoot = "left"; updateView(); };
+    document.getElementById("rightBtn").onclick = () => { currentFoot = "right"; updateView(); };
     document.getElementById("rotateBtn").onclick = () => setMode("rotate");
     document.getElementById("drawBtn").onclick = () => setMode("draw");
     document.getElementById("undoBtn").onclick = undoLastMarker;
     document.getElementById("clearMarkersBtn").onclick = () => { markerGroup.clear(); markerLogs = []; };
     document.getElementById("exportMapBtn").onclick = exportRegionMap;
+    document.getElementById("deleteRegionBtn").onclick = () => {
+        if(transformControls.object) {
+            regionGroup.remove(transformControls.object);
+            transformControls.detach();
+        }
+    };
     document.getElementById("toggleEditBtn").onclick = () => {
         const p = document.getElementById("edit-panel");
         p.style.display = (p.style.display === "none" || p.style.display === "") ? "block" : "none";
         setMode(p.style.display === "block" ? "edit" : "rotate");
     };
-    document.getElementById("addRegionBtn").onclick = () => addRegion();
-    document.getElementById("clearBtn").onclick = () => { if(confirm("Wipe all?")) location.reload(); };
+    document.getElementById("addRegionBtn").onclick = () => {
+        const side = currentFoot === "left" ? "Left foot" : "Right foot";
+        const customName = document.getElementById("regionNameInput").value || "New Region";
+        addRegion(`${side} - ${customName}`);
+    };
+    document.getElementById("clearBtn").onclick = () => { if(confirm("Reset all settings?")) location.reload(); };
     document.getElementById("downloadBtn").onclick = downloadReport;
 
     window.addEventListener("resize", onResize);
@@ -173,6 +191,18 @@ function init() {
     animate();
 }
 
+function updateView() {
+    loadFoot();
+    filterRegions();
+}
+
+function filterRegions() {
+    const side = currentFoot === "left" ? "Left foot" : "Right foot";
+    regionGroup.children.forEach(box => {
+        box.visible = box.userData.name.startsWith(side);
+    });
+}
+
 function setMode(m) {
     mode = m;
     document.querySelectorAll(".group button, #toggleEditBtn").forEach(b => b.classList.remove("active"));
@@ -184,52 +214,37 @@ function setMode(m) {
 
 function loadFoot() {
     isLoaded = false;
-    statusEl.textContent = "Switching...";
-    
-    // Clear Markers and Foot
+    statusEl.textContent = "Loading...";
     footGroup.clear();
     markerGroup.clear();
-    regionGroup.clear();
     markerLogs = [];
-    transformControls.detach();
-
-    // Reload relevant boxes for this side
-    const sidePrefix = currentFoot === "left" ? "Left" : "Right";
-    PRESET_REGIONS.forEach(data => {
-        if (data.name.startsWith(sidePrefix)) {
-            addRegion(data.name, data.pos, data.rot, data.scale);
-        }
-    });
 
     new GLTFLoader().load(urls[currentFoot], (gltf) => {
         const model = gltf.scene;
         model.traverse(c => { if(c.isMesh) c.material = new THREE.MeshStandardMaterial({ color: 0xdddddd }); });
-        
-        // --- NORMALIZATION: ENSURE MODELS ARE SAME SIZE/CENTER ---
+        footGroup.add(model);
+
         const box = new THREE.Box3().setFromObject(model);
         const center = box.getCenter(new THREE.Vector3());
-        model.position.sub(center); // Re-center the model points
+        const size = box.getSize(new THREE.Vector3());
         
-        footGroup.add(model);
+        // Standardized camera zoom (no normalization of model)
+        let maxDim = Math.max(size.x, size.y, size.z);
+        let camDist = maxDim / (2 * Math.tan(Math.PI * camera.fov / 360)) * 1.5;
         
-        // Recalculate camera based on fresh normalized box
-        const normBox = new THREE.Box3().setFromObject(footGroup);
-        const size = normBox.getSize(new THREE.Vector3());
-        let cameraDist = Math.abs(Math.max(size.x, size.y, size.z) / 2 / Math.tan((camera.fov * Math.PI / 180) / 2)) * 1.5;
-        
-        camera.position.set(0, size.y * 0.2, cameraDist);
-        controls.target.set(0, 0, 0);
+        camera.position.set(center.x, center.y + (size.y * 0.2), center.z + camDist);
+        controls.target.copy(center);
         
         document.getElementById("leftBtn").classList.toggle("active", currentFoot === "left");
         document.getElementById("rightBtn").classList.toggle("active", currentFoot === "right");
         
         statusEl.textContent = "READY: " + currentFoot.toUpperCase();
         isLoaded = true;
+        filterRegions();
     });
 }
 
 function addRegion(name, pos, rot, scale) {
-    const rName = name || document.getElementById("regionNameInput").value || "New Region";
     const mesh = new THREE.Mesh(
         new THREE.BoxGeometry(1, 1, 1),
         new THREE.MeshBasicMaterial({ color: 0x00f2ff, wireframe: true, transparent: true, opacity: 0.6 })
@@ -244,9 +259,10 @@ function addRegion(name, pos, rot, scale) {
         mesh.scale.set(0.05, 0.05, 0.05);
     }
     
-    mesh.userData.name = rName;
+    mesh.userData.name = name;
     regionGroup.add(mesh);
     if (!pos) transformControls.attach(mesh);
+    document.getElementById("regionNameInput").value = "";
 }
 
 function onMouseDown(e) {
@@ -256,7 +272,7 @@ function onMouseDown(e) {
     raycaster.setFromCamera(mouse, camera);
 
     if (mode === "edit") {
-        const hits = raycaster.intersectObjects(regionGroup.children);
+        const hits = raycaster.intersectObjects(regionGroup.children.filter(b => b.visible));
         if (hits.length > 0) transformControls.attach(hits[0].object);
     } else if (mode === "draw") {
         const hits = raycaster.intersectObject(footGroup, true);
@@ -265,6 +281,7 @@ function onMouseDown(e) {
             let region = "Undefined Area";
             
             regionGroup.children.forEach(box => {
+                if (!box.visible) return;
                 const localPoint = box.worldToLocal(pos.clone());
                 if (Math.abs(localPoint.x) < 0.5 && Math.abs(localPoint.y) < 0.5 && Math.abs(localPoint.z) < 0.5) {
                     region = box.userData.name;
