@@ -79,13 +79,14 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
 
-const PRESET_REGIONS = [const PRESET_REGIONS = [
-  { name: "Left foot - Left foot - Dorsal Hallux Toenail", pos: [-0.11115, 0.09737, 0.45403], rot: [0.00000, 0.14386, 0.00000], scale: [0.06768, 0.01213, 0.07894] },
-  { name: "Left foot - Left foot - Dorsal Hallux Interphalangeal joint", pos: [-0.11861, 0.10516, 0.38303], rot: [0.27154, 0.11557, 0.02229], scale: [0.08201, 0.00801, 0.02419] },
-  { name: "Left foot - Left foot - Lateral Hallux Interphalangeal joint", pos: [-0.08142, 0.06081, 0.37553], rot: [0.06665, 0.19010, 0.00526], scale: [0.01348, 0.07351, 0.02105] },
-  { name: "Left foot - Left foot - Medial Hallux Interphalangeal joint", pos: [-0.16746, 0.06292, 0.38540], rot: [0.00000, 0.00000, 0.00000], scale: [0.01244, 0.06737, 0.01645] },
-  { name: "Left foot - Left foot - Plantar Hallux Interphalangeal joint", pos: [-0.12047, 0.02225, 0.38239], rot: [-0.00636, 0.08653, -0.05221], scale: [0.10000, 0.01374, 0.01632] },
-]; // Load fresh normalized regions here later
+// FIXED: Removed the double declaration and closing brackets
+const PRESET_REGIONS = [
+  { name: "Left foot - Dorsal Hallux Toenail", pos: [-0.11115, 0.09737, 0.45403], rot: [0.00000, 0.14386, 0.00000], scale: [0.06768, 0.01213, 0.07894] },
+  { name: "Left foot - Dorsal Hallux Interphalangeal joint", pos: [-0.11861, 0.10516, 0.38303], rot: [0.27154, 0.11557, 0.02229], scale: [0.08201, 0.00801, 0.02419] },
+  { name: "Left foot - Lateral Hallux Interphalangeal joint", pos: [-0.08142, 0.06081, 0.37553], rot: [0.06665, 0.19010, 0.00526], scale: [0.01348, 0.07351, 0.02105] },
+  { name: "Left foot - Medial Hallux Interphalangeal joint", pos: [-0.16746, 0.06292, 0.38540], rot: [0.00000, 0.00000, 0.00000], scale: [0.01244, 0.06737, 0.01645] },
+  { name: "Left foot - Plantar Hallux Interphalangeal joint", pos: [-0.12047, 0.02225, 0.38239], rot: [-0.00636, 0.08653, -0.05221], scale: [0.10000, 0.01374, 0.01632] },
+];
 
 const urls = {
     left: "https://stuart-mcneill.github.io/3Dfootselection/Leftfoot.glb",
@@ -121,7 +122,6 @@ function init() {
     controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
 
-    // --- TRANSFORM CONTROLS SETUP ---
     transformControls = new TransformControls(camera, renderer.domElement);
     transformControls.addEventListener('dragging-changed', (e) => { controls.enabled = !e.value; });
     scene.add(transformControls);
@@ -135,7 +135,9 @@ function init() {
     scene.add(markerGroup);
     scene.add(regionGroup);
 
-    // Keyboard Shortcuts
+    // Initial Load of presets
+    PRESET_REGIONS.forEach(data => addRegion(data.name, data.pos, data.rot, data.scale));
+
     window.addEventListener('keydown', (e) => {
         if (mode !== "edit") return;
         switch (e.key.toLowerCase()) {
@@ -145,7 +147,6 @@ function init() {
         }
     });
 
-    // UI Buttons
     document.getElementById("leftBtn").onclick = () => { currentFoot = "left"; loadFoot(); };
     document.getElementById("rightBtn").onclick = () => { currentFoot = "right"; loadFoot(); };
     document.getElementById("rotateBtn").onclick = () => setMode("rotate");
@@ -193,14 +194,12 @@ function loadFoot() {
         const model = gltf.scene;
         model.traverse(c => { if(c.isMesh) c.material = new THREE.MeshStandardMaterial({ color: 0xdddddd }); });
         
-        // --- SCALE & ALIGNMENT ---
         const box = new THREE.Box3().setFromObject(model);
         const size = new THREE.Vector3();
         box.getSize(size);
         const center = new THREE.Vector3();
         box.getCenter(center);
 
-        // Normalize floor and center
         model.position.x = -center.x;
         model.position.y = -box.min.y; 
         model.position.z = -center.z;
@@ -211,7 +210,6 @@ function loadFoot() {
         model.position.multiplyScalar(scaleFactor);
 
         footGroup.add(model);
-        
         camera.position.set(0, 0.8, 2.2);
         controls.target.set(0, 0.4, 0);
         
@@ -235,7 +233,7 @@ function setMode(m) {
 function filterRegions() {
     const side = currentFoot === "left" ? "Left foot" : "Right foot";
     regionGroup.children.forEach(box => {
-        box.visible = box.userData.name.startsWith(side);
+        box.visible = box.userData.name.includes(side);
     });
 }
 
@@ -277,7 +275,7 @@ function onMouseDown(e) {
                 const local = box.worldToLocal(pos.clone());
                 if (Math.abs(local.x) < 0.5 && Math.abs(local.y) < 0.5 && Math.abs(local.z) < 0.5) region = box.userData.name;
             });
-            const dot = new THREE.Mesh(new THREE.SphereGeometry(0.01), new THREE.MeshBasicMaterial({ color: 0xff4400 }));
+            const dot = new THREE.Mesh(new THREE.SphereGeometry(0.015), new THREE.MeshBasicMaterial({ color: 0xff4400 }));
             dot.position.copy(pos);
             markerGroup.add(dot);
             markerLogs.push({ region, x: pos.x.toFixed(3), y: pos.y.toFixed(3), z: pos.z.toFixed(3) });
