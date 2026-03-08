@@ -2,24 +2,19 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Clinical 3D Foot Analysis Pro</title>
+<title>Clinical 3D Foot Analysis Pro - Normalized</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
     body { margin: 0; background: #050505; color: #eee; font-family: 'Inter', -apple-system, sans-serif; overflow: hidden; }
     #ui { position: fixed; top: 15px; left: 15px; z-index: 100; display: flex; flex-direction: column; gap: 8px; width: 260px; background: rgba(15,15,15,0.95); padding: 18px; border-radius: 12px; border: 1px solid #333; box-shadow: 0 10px 40px rgba(0,0,0,0.6); backdrop-filter: blur(5px); max-height: 90vh; overflow-y: auto; }
-    
     .label { font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 1.2px; margin: 8px 0 4px 0; }
     .group { display: flex; gap: 4px; }
-    
     button { background: #2a2a2a; color: white; border: 1px solid #444; padding: 10px; border-radius: 6px; cursor: pointer; font-size: 11px; flex: 1; transition: 0.2s; font-weight: 500; }
     button:hover { background: #3a3a3a; border-color: #555; }
     button.active { background: #388e3c; border-color: #4caf50; box-shadow: 0 0 10px rgba(76, 175, 80, 0.3); }
-    
     input { background: #111; border: 1px solid #444; color: white; padding: 10px; border-radius: 6px; font-size: 12px; width: calc(100% - 22px); margin-bottom: 6px; outline: none; }
-    
     #status { position: fixed; top: 15px; right: 15px; background: #2e7d32; color: white; padding: 6px 14px; border-radius: 20px; font-size: 11px; font-weight: bold; border: 1px solid #4caf50; pointer-events: none; }
     #coords { position: fixed; bottom: 15px; left: 15px; background: rgba(0,0,0,0.85); padding: 8px 12px; border-radius: 6px; font-size: 11px; font-family: 'Courier New', monospace; border: 1px solid #333; color: #4caf50; pointer-events: none; }
-    
     hr { border: 0; border-top: 1px solid #333; margin: 10px 0; }
     #edit-panel { display: none; background: #1a1a1a; padding: 12px; border-radius: 8px; margin-top: 5px; border: 1px solid #333; }
     .danger-btn { background: #b71c1c; border-color: #d32f2f; }
@@ -59,7 +54,7 @@
     <button id="toggleEditBtn" style="background:#1565c0; border-color:#1976d2;">Manage Regions</button>
     
     <div id="edit-panel">
-        <input type="text" id="regionNameInput" placeholder="Region Name">
+        <input type="text" id="regionNameInput" placeholder="Region Name (e.g. Heel)">
         <button id="addRegionBtn" style="background:#0288d1; width:100%;">Create Box</button>
         <button id="deleteRegionBtn" class="danger-btn" style="width:100%; margin-top:5px;">Delete Selected</button>
         <button id="exportMapBtn" style="background:#6a1b9a; width:100%; margin-top:8px;">Download Region Map</button>
@@ -83,22 +78,8 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
 
-const PRESET_REGIONS = [
-  { name: "Left foot - Dorsal Hallux Toenail", pos: [-0.09020, 0.06905, 0.47595], rot: [0.00000, 0.17125, 0.00000], scale: [0.04911, 0.01155, 0.05000] },
-  { name: "Left foot - Dorsal 1st Interphalangeal joint", pos: [-0.09714, 0.07657, 0.43621], rot: [0.00000, 0.17070, 0.00000], scale: [0.06834, 0.01107, 0.02876] },
-  { name: "Left foot - Dorsal 2nd Toenail", pos: [-0.02271, 0.05146, 0.47430], rot: [0.23779, 0.15617, 0.00000], scale: [0.03294, 0.00838, 0.03062] },
-  { name: "Left foot - Hallux Apex", pos: [-0.09396, 0.04696, 0.49629], rot: [0.48859, -0.03339, 0.00000], scale: [0.06391, 0.04177, 0.01031] },
-  { name: "Left foot - Plantar 1st Interphalangeal joint", pos: [-0.09782, 0.01555, 0.43840], rot: [0.00000, 0.00000, 0.00000], scale: [0.07623, 0.01328, 0.02011] },
-  { name: "Left foot - Plantar Hallux", pos: [-0.09815, 0.02517, 0.43090], rot: [0.00000, 0.00000, 0.00000], scale: [0.07906, 0.01401, 0.11221] },
-  { name: "Left foot - Medial Hallux", pos: [-0.12798, 0.04421, 0.43439], rot: [0.00000, 0.13763, 0.00000], scale: [0.01999, 0.05000, 0.10910] },
-  { name: "Left foot - Medial 1st Interphalangeal joint", pos: [-0.13073, 0.04857, 0.43532], rot: [0.00000, 0.00000, 0.00000], scale: [0.01515, 0.03609, 0.01622] },
-  { name: "Left foot - Dorsal Hallux", pos: [-0.09700, 0.08231, 0.43952], rot: [0.00452, 0.06786, 0.00795], scale: [0.08033, 0.03004, 0.12294] },
-  { name: "Left foot - Dorsal 1st Metatarsophalangeal joint", pos: [-0.10335, 0.09257, 0.34182], rot: [0.00408, 0.06885, 0.03352], scale: [0.08537, 0.04045, 0.07605] },
-  { name: "Left foot - Lateral Hallux", pos: [-0.06390, 0.04690, 0.42823], rot: [0.00101, 0.12646, -0.01004], scale: [0.01303, 0.05000, 0.11723] },
-  { name: "Left foot - Medial 1st Metatarsophalangeal joint", pos: [-0.14720, 0.05649, 0.33854], rot: [0.00000, 0.00000, 0.00000], scale: [0.01749, 0.07815, 0.08896] },
-  { name: "Left foot - Plantar 1st Metatarsophalangeal joint", pos: [-0.10273, 0.01871, 0.33197], rot: [0.00000, 0.00000, 0.00000], scale: [0.08566, 0.03362, 0.09063] },
-  { name: "Left foot - Plantar Tibial Sesamoid", pos: [-0.12731, 0.00969, 0.31109], rot: [-0.14882, -0.00762, -0.01836], scale: [0.02550, 0.01192, 0.03249] },
-];
+// Starting fresh with Normalized Coordinates
+const PRESET_REGIONS = [];
 
 const urls = {
     left: "https://stuart-mcneill.github.io/3Dfootselection/Leftfoot.glb",
@@ -150,12 +131,9 @@ function init() {
     scene.add(markerGroup);
     scene.add(regionGroup);
 
-    // Initial Load
-    PRESET_REGIONS.forEach(data => addRegion(data.name, data.pos, data.rot, data.scale));
-
-    // UI
-    document.getElementById("leftBtn").onclick = () => { currentFoot = "left"; updateView(); };
-    document.getElementById("rightBtn").onclick = () => { currentFoot = "right"; updateView(); };
+    // UI Bindings
+    document.getElementById("leftBtn").onclick = () => { currentFoot = "left"; loadFoot(); };
+    document.getElementById("rightBtn").onclick = () => { currentFoot = "right"; loadFoot(); };
     document.getElementById("rotateBtn").onclick = () => setMode("rotate");
     document.getElementById("drawBtn").onclick = () => setMode("draw");
     document.getElementById("undoBtn").onclick = undoLastMarker;
@@ -174,10 +152,10 @@ function init() {
     };
     document.getElementById("addRegionBtn").onclick = () => {
         const side = currentFoot === "left" ? "Left foot" : "Right foot";
-        const customName = document.getElementById("regionNameInput").value || "New Region";
-        addRegion(`${side} - ${customName}`);
+        const baseName = document.getElementById("regionNameInput").value || "Generic Region";
+        addRegion(`${side} - ${baseName}`);
     };
-    document.getElementById("clearBtn").onclick = () => { if(confirm("Reset all settings?")) location.reload(); };
+    document.getElementById("clearBtn").onclick = () => { if(confirm("Wipe all?")) location.reload(); };
     document.getElementById("downloadBtn").onclick = downloadReport;
 
     window.addEventListener("resize", onResize);
@@ -189,11 +167,6 @@ function init() {
     });
 
     animate();
-}
-
-function updateView() {
-    loadFoot();
-    filterRegions();
 }
 
 function filterRegions() {
@@ -214,26 +187,36 @@ function setMode(m) {
 
 function loadFoot() {
     isLoaded = false;
-    statusEl.textContent = "Loading...";
+    statusEl.textContent = "Normalizing Model...";
     footGroup.clear();
     markerGroup.clear();
     markerLogs = [];
+    transformControls.detach();
 
     new GLTFLoader().load(urls[currentFoot], (gltf) => {
         const model = gltf.scene;
         model.traverse(c => { if(c.isMesh) c.material = new THREE.MeshStandardMaterial({ color: 0xdddddd }); });
-        footGroup.add(model);
-
+        
+        // --- NORMALIZATION STEP ---
         const box = new THREE.Box3().setFromObject(model);
         const center = box.getCenter(new THREE.Vector3());
         const size = box.getSize(new THREE.Vector3());
         
-        // Standardized camera zoom (no normalization of model)
-        let maxDim = Math.max(size.x, size.y, size.z);
-        let camDist = maxDim / (2 * Math.tan(Math.PI * camera.fov / 360)) * 1.5;
+        // Center the internal geometry
+        model.position.x += (model.position.x - center.x);
+        model.position.y += (model.position.y - center.y);
+        model.position.z += (model.position.z - center.z);
         
-        camera.position.set(center.x, center.y + (size.y * 0.2), center.z + camDist);
-        controls.target.copy(center);
+        // Scale to a standard 1-unit size
+        const maxDim = Math.max(size.x, size.y, size.z);
+        const scale = 1.0 / maxDim;
+        model.scale.setScalar(scale);
+        
+        footGroup.add(model);
+        
+        // Setup Camera for 1-unit world
+        camera.position.set(0, 0.2, 2.5);
+        controls.target.set(0, 0, 0);
         
         document.getElementById("leftBtn").classList.toggle("active", currentFoot === "left");
         document.getElementById("rightBtn").classList.toggle("active", currentFoot === "right");
@@ -255,14 +238,15 @@ function addRegion(name, pos, rot, scale) {
         mesh.rotation.set(...rot);
         mesh.scale.set(...scale);
     } else {
-        mesh.position.copy(controls.target);
-        mesh.scale.set(0.05, 0.05, 0.05);
+        mesh.position.set(0,0,0);
+        mesh.scale.set(0.1, 0.1, 0.1);
     }
     
     mesh.userData.name = name;
     regionGroup.add(mesh);
     if (!pos) transformControls.attach(mesh);
     document.getElementById("regionNameInput").value = "";
+    filterRegions();
 }
 
 function onMouseDown(e) {
@@ -288,7 +272,7 @@ function onMouseDown(e) {
                 }
             });
 
-            const marker = new THREE.Mesh(new THREE.SphereGeometry(0.003), new THREE.MeshBasicMaterial({ color: 0xff4400 }));
+            const marker = new THREE.Mesh(new THREE.SphereGeometry(0.01), new THREE.MeshBasicMaterial({ color: 0xff4400 }));
             marker.position.copy(pos);
             markerGroup.add(marker);
             markerLogs.push({ x: pos.x.toFixed(4), y: pos.y.toFixed(4), z: pos.z.toFixed(4), region });
@@ -307,7 +291,7 @@ function exportRegionMap() {
     const blob = new Blob([output], { type: "text/javascript" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = "region_map.js";
+    a.download = "normalized_region_map.js";
     a.click();
 }
 
@@ -319,7 +303,7 @@ function undoLastMarker() {
 }
 
 function downloadReport() {
-    let txt = `FOOT ANALYSIS (${currentFoot.toUpperCase()})\n\n`;
+    let txt = `NORMALIZED FOOT ANALYSIS\n\n`;
     markerLogs.forEach((l, i) => txt += `${i+1}. [${l.region}] X:${l.x} Y:${l.y} Z:${l.z}\n`);
     const blob = new Blob([txt], { type: "text/plain" });
     const a = document.createElement("a");
