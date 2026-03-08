@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Clinical 3D Foot Analysis Pro - Normalized</title>
+<title>Clinical 3D Foot Analysis - Aligned</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
     body { margin: 0; background: #050505; color: #eee; font-family: 'Inter', -apple-system, sans-serif; overflow: hidden; }
@@ -54,23 +54,19 @@
     <button id="toggleEditBtn" style="background:#1565c0; border-color:#1976d2;">Manage Regions</button>
     
     <div id="edit-panel">
-        <input type="text" id="regionNameInput" placeholder="Region Name (e.g. Heel)">
+        <input type="text" id="regionNameInput" placeholder="Region Name">
         <button id="addRegionBtn" style="background:#0288d1; width:100%;">Create Box</button>
         <button id="deleteRegionBtn" class="danger-btn" style="width:100%; margin-top:5px;">Delete Selected</button>
         <button id="exportMapBtn" style="background:#6a1b9a; width:100%; margin-top:8px;">Download Region Map</button>
-        <div style="font-size: 9px; color: #777; margin-top: 10px; text-align: center;">
-            T: Move | R: Rotate | S: Resize
-        </div>
     </div>
 
     <hr>
-    <div class="label">Final Report</div>
     <button id="downloadBtn" style="background:#2e7d32; width:100%; margin-bottom:5px;">Download Report</button>
     <button id="clearBtn" class="danger-btn" style="width:100%;">Reset Everything</button>
 </div>
 
 <div id="status">Ready</div>
-<div id="coords">Select a mode to begin...</div>
+<div id="coords">Ready for analysis...</div>
 
 <script type="module">
 import * as THREE from "three";
@@ -78,7 +74,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
 
-// Starting fresh with Normalized Coordinates
+// Placeholder for your new normalized regions
 const PRESET_REGIONS = [];
 
 const urls = {
@@ -99,9 +95,6 @@ let isLoaded = false;
 let mode = "rotate"; 
 let markerLogs = [];
 
-const statusEl = document.getElementById("status");
-const coordsEl = document.getElementById("coords");
-
 init();
 loadFoot();
 
@@ -109,7 +102,7 @@ function init() {
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x050505);
 
-    camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.01, 100);
+    camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 0.1, 100);
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -131,48 +124,86 @@ function init() {
     scene.add(markerGroup);
     scene.add(regionGroup);
 
-    // UI Bindings
+    // UI Logic
     document.getElementById("leftBtn").onclick = () => { currentFoot = "left"; loadFoot(); };
     document.getElementById("rightBtn").onclick = () => { currentFoot = "right"; loadFoot(); };
     document.getElementById("rotateBtn").onclick = () => setMode("rotate");
     document.getElementById("drawBtn").onclick = () => setMode("draw");
     document.getElementById("undoBtn").onclick = undoLastMarker;
     document.getElementById("clearMarkersBtn").onclick = () => { markerGroup.clear(); markerLogs = []; };
-    document.getElementById("exportMapBtn").onclick = exportRegionMap;
+    
+    document.getElementById("toggleEditBtn").onclick = () => {
+        const p = document.getElementById("edit-panel");
+        p.style.display = (p.style.display === "none" || p.style.display === "") ? "block" : "none";
+        setMode(p.style.display === "block" ? "edit" : "rotate");
+    };
+
+    document.getElementById("addRegionBtn").onclick = () => {
+        const side = currentFoot === "left" ? "Left foot" : "Right foot";
+        const name = document.getElementById("regionNameInput").value || "Zone";
+        addRegion(`${side} - ${name}`);
+    };
+
     document.getElementById("deleteRegionBtn").onclick = () => {
         if(transformControls.object) {
             regionGroup.remove(transformControls.object);
             transformControls.detach();
         }
     };
-    document.getElementById("toggleEditBtn").onclick = () => {
-        const p = document.getElementById("edit-panel");
-        p.style.display = (p.style.display === "none" || p.style.display === "") ? "block" : "none";
-        setMode(p.style.display === "block" ? "edit" : "rotate");
-    };
-    document.getElementById("addRegionBtn").onclick = () => {
-        const side = currentFoot === "left" ? "Left foot" : "Right foot";
-        const baseName = document.getElementById("regionNameInput").value || "Generic Region";
-        addRegion(`${side} - ${baseName}`);
-    };
-    document.getElementById("clearBtn").onclick = () => { if(confirm("Wipe all?")) location.reload(); };
+
+    document.getElementById("exportMapBtn").onclick = exportRegionMap;
     document.getElementById("downloadBtn").onclick = downloadReport;
+    document.getElementById("clearBtn").onclick = () => { if(confirm("Clear all data?")) location.reload(); };
 
     window.addEventListener("resize", onResize);
     renderer.domElement.addEventListener("mousedown", onMouseDown);
-    window.addEventListener('keydown', (e) => {
-        if (e.key.toLowerCase() === 't') transformControls.setMode("translate");
-        if (e.key.toLowerCase() === 'r') transformControls.setMode("rotate");
-        if (e.key.toLowerCase() === 's') transformControls.setMode("scale");
-    });
-
     animate();
 }
 
-function filterRegions() {
-    const side = currentFoot === "left" ? "Left foot" : "Right foot";
-    regionGroup.children.forEach(box => {
-        box.visible = box.userData.name.startsWith(side);
+function loadFoot() {
+    isLoaded = false;
+    statusEl("Aligning Model...");
+    footGroup.clear();
+    markerGroup.clear();
+    markerLogs = [];
+    transformControls.detach();
+
+    new GLTFLoader().load(urls[currentFoot], (gltf) => {
+        const model = gltf.scene;
+        model.traverse(c => { if(c.isMesh) c.material = new THREE.MeshStandardMaterial({ color: 0xdddddd }); });
+        
+        // --- STABILIZED NORMALIZATION ---
+        const box = new THREE.Box3().setFromObject(model);
+        const size = new THREE.Vector3();
+        box.getSize(size);
+        const center = new THREE.Vector3();
+        box.getCenter(center);
+
+        // 1. Position alignment: Move center to 0 on X/Z, but set bottom to 0 on Y
+        model.position.x = -center.x;
+        model.position.y = -box.min.y; 
+        model.position.z = -center.z;
+
+        // 2. Scale alignment: Scale so the largest dimension is exactly 1.0 unit
+        const maxDim = Math.max(size.x, size.y, size.z);
+        const scaleFactor = 1.0 / maxDim;
+        model.scale.setScalar(scaleFactor);
+        
+        // Correcting the position shift caused by scaling
+        model.position.multiplyScalar(scaleFactor);
+
+        footGroup.add(model);
+        
+        // Standard Viewpoint
+        camera.position.set(0, 0.8, 2);
+        controls.target.set(0, 0.4, 0);
+        
+        document.getElementById("leftBtn").classList.toggle("active", currentFoot === "left");
+        document.getElementById("rightBtn").classList.toggle("active", currentFoot === "right");
+        
+        statusEl("READY: " + currentFoot.toUpperCase());
+        isLoaded = true;
+        filterRegions();
     });
 }
 
@@ -185,45 +216,10 @@ function setMode(m) {
     if (mode !== "edit") transformControls.detach();
 }
 
-function loadFoot() {
-    isLoaded = false;
-    statusEl.textContent = "Normalizing Model...";
-    footGroup.clear();
-    markerGroup.clear();
-    markerLogs = [];
-    transformControls.detach();
-
-    new GLTFLoader().load(urls[currentFoot], (gltf) => {
-        const model = gltf.scene;
-        model.traverse(c => { if(c.isMesh) c.material = new THREE.MeshStandardMaterial({ color: 0xdddddd }); });
-        
-        // --- NORMALIZATION STEP ---
-        const box = new THREE.Box3().setFromObject(model);
-        const center = box.getCenter(new THREE.Vector3());
-        const size = box.getSize(new THREE.Vector3());
-        
-        // Center the internal geometry
-        model.position.x += (model.position.x - center.x);
-        model.position.y += (model.position.y - center.y);
-        model.position.z += (model.position.z - center.z);
-        
-        // Scale to a standard 1-unit size
-        const maxDim = Math.max(size.x, size.y, size.z);
-        const scale = 1.0 / maxDim;
-        model.scale.setScalar(scale);
-        
-        footGroup.add(model);
-        
-        // Setup Camera for 1-unit world
-        camera.position.set(0, 0.2, 2.5);
-        controls.target.set(0, 0, 0);
-        
-        document.getElementById("leftBtn").classList.toggle("active", currentFoot === "left");
-        document.getElementById("rightBtn").classList.toggle("active", currentFoot === "right");
-        
-        statusEl.textContent = "READY: " + currentFoot.toUpperCase();
-        isLoaded = true;
-        filterRegions();
+function filterRegions() {
+    const side = currentFoot === "left" ? "Left foot" : "Right foot";
+    regionGroup.children.forEach(box => {
+        box.visible = box.userData.name.startsWith(side);
     });
 }
 
@@ -232,20 +228,17 @@ function addRegion(name, pos, rot, scale) {
         new THREE.BoxGeometry(1, 1, 1),
         new THREE.MeshBasicMaterial({ color: 0x00f2ff, wireframe: true, transparent: true, opacity: 0.6 })
     );
-    
     if (pos) {
         mesh.position.set(...pos);
         mesh.rotation.set(...rot);
         mesh.scale.set(...scale);
     } else {
-        mesh.position.set(0,0,0);
+        mesh.position.set(0, 0.5, 0);
         mesh.scale.set(0.1, 0.1, 0.1);
     }
-    
     mesh.userData.name = name;
     regionGroup.add(mesh);
     if (!pos) transformControls.attach(mesh);
-    document.getElementById("regionNameInput").value = "";
     filterRegions();
 }
 
@@ -262,22 +255,27 @@ function onMouseDown(e) {
         const hits = raycaster.intersectObject(footGroup, true);
         if (hits.length > 0) {
             const pos = hits[0].point;
-            let region = "Undefined Area";
-            
+            let region = "Unknown";
             regionGroup.children.forEach(box => {
                 if (!box.visible) return;
-                const localPoint = box.worldToLocal(pos.clone());
-                if (Math.abs(localPoint.x) < 0.5 && Math.abs(localPoint.y) < 0.5 && Math.abs(localPoint.z) < 0.5) {
-                    region = box.userData.name;
-                }
+                const local = box.worldToLocal(pos.clone());
+                if (Math.abs(local.x) < 0.5 && Math.abs(local.y) < 0.5 && Math.abs(local.z) < 0.5) region = box.userData.name;
             });
-
-            const marker = new THREE.Mesh(new THREE.SphereGeometry(0.01), new THREE.MeshBasicMaterial({ color: 0xff4400 }));
-            marker.position.copy(pos);
-            markerGroup.add(marker);
-            markerLogs.push({ x: pos.x.toFixed(4), y: pos.y.toFixed(4), z: pos.z.toFixed(4), region });
-            coordsEl.textContent = `Point: ${region}`;
+            const dot = new THREE.Mesh(new THREE.SphereGeometry(0.01), new THREE.MeshBasicMaterial({ color: 0xff4400 }));
+            dot.position.copy(pos);
+            markerGroup.add(dot);
+            markerLogs.push({ region, x: pos.x.toFixed(3), y: pos.y.toFixed(3), z: pos.z.toFixed(3) });
+            document.getElementById("coords").textContent = `Selected: ${region}`;
         }
+    }
+}
+
+function statusEl(txt) { document.getElementById("status").textContent = txt; }
+
+function undoLastMarker() {
+    if (markerGroup.children.length > 0) {
+        markerGroup.remove(markerGroup.children[markerGroup.children.length - 1]);
+        markerLogs.pop();
     }
 }
 
@@ -291,20 +289,13 @@ function exportRegionMap() {
     const blob = new Blob([output], { type: "text/javascript" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = "normalized_region_map.js";
+    a.download = "aligned_regions.js";
     a.click();
 }
 
-function undoLastMarker() {
-    if (markerGroup.children.length > 0) {
-        markerGroup.remove(markerGroup.children[markerGroup.children.length - 1]);
-        markerLogs.pop();
-    }
-}
-
 function downloadReport() {
-    let txt = `NORMALIZED FOOT ANALYSIS\n\n`;
-    markerLogs.forEach((l, i) => txt += `${i+1}. [${l.region}] X:${l.x} Y:${l.y} Z:${l.z}\n`);
+    let txt = `ANALYSIS REPORT - ${currentFoot.toUpperCase()}\n\n`;
+    markerLogs.forEach((m, i) => txt += `${i+1}. [${m.region}] Pos: ${m.x}, ${m.y}, ${m.z}\n`);
     const blob = new Blob([txt], { type: "text/plain" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
