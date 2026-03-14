@@ -81,7 +81,7 @@ import { TransformControls } from "three/examples/jsm/controls/TransformControls
 
 // FIXED: Removed the double declaration and closing brackets
 const PRESET_REGIONS = [
-  // --- LEFT FOOT ---
+  // LEFT FOOT
   { name: "Left foot - Dorsal Hallux Toenail", pos: [-0.11115, 0.09737, 0.45403], rot: [0.00000, 0.01032, 0.00000], scale: [0.06768, 0.02560, 0.07894] },
   { name: "Left foot - Dorsal Hallux Interphalangeal joint", pos: [-0.11861, 0.12358, 0.38303], rot: [0.27154, 0.11557, 0.02229], scale: [0.08201, 0.02999, 0.02419] },
   { name: "Left foot - Lateral Hallux Interphalangeal joint", pos: [-0.08142, 0.06081, 0.37553], rot: [0.06665, 0.19010, 0.00526], scale: [0.01348, 0.07351, 0.02105] },
@@ -151,12 +151,22 @@ const PRESET_REGIONS = [
   { name: "Left foot - 5th Plantar Toe", pos: [0.14444, 0.04506, 0.31317], rot: [0.29406, 0.00005, 0.00027], scale: [0.03439, 0.01723, 0.06627] },
   { name: "Left foot - 5th Medial Toe", pos: [0.13765, 0.05807, 0.31499], rot: [0.15484, -0.08076, -0.02360], scale: [0.01672, 0.02617, 0.06402] },
   { name: "Left foot - 5th Lateral Toe", pos: [0.16575, 0.05852, 0.31868], rot: [0.26492, -0.06765, -0.18791], scale: [0.01318, 0.02775, 0.08480] },
+  { name: "Left foot - Plantar 4th Metatarsophalangeal joint", pos: [0.09358, 0.02514, 0.27015], rot: [-0.01038, 0.07019, 0.04787], scale: [0.05265, 0.06951, 0.07306] },
+  { name: "Left foot - Dorsal 4th Metatarsophalangeal joint", pos: [0.10658, 0.13172, 0.25953], rot: [0.31958, -0.01414, -0.01277], scale: [0.05724, 0.10000, 0.08049] },
+  { name: "Left foot - Dorsal 5th Metatarsophalangeal joint", pos: [0.16098, 0.12258, 0.20810], rot: [0.22476, -0.09131, -0.07091], scale: [0.06064, 0.10000, 0.12244] },
+  { name: "Left foot - Plantar 5th Metatarsophalangeal joint", pos: [0.15671, 0.02905, 0.20695], rot: [-0.01479, -0.07405, -0.15925], scale: [0.05707, 0.05933, 0.15656] },
+  { name: "Left foot - Lateral 5th Metatarsophalangeal joint", pos: [0.18809, 0.06346, 0.19148], rot: [0.05798, 0.04696, -0.17125], scale: [0.05131, 0.04416, 0.10642] },
+  { name: "Left foot - Dorsal 4th Metatarsal", pos: [0.09982, 0.14247, 0.11031], rot: [0.36551, -0.02976, -0.06092], scale: [0.04942, 0.05673, 0.23769] },
+  { name: "Left foot - Dorsal 5th Metatarsal", pos: [0.15384, 0.10360, 0.06758], rot: [0.16690, 0.06165, -0.01446], scale: [0.04858, 0.08361, 0.23036] },
+  { name: "Left foot - Plantar 4th Metatarsal", pos: [0.08627, 0.02601, 0.10097], rot: [0.09636, 0.04298, 0.00013], scale: [0.05133, 0.10000, 0.26879] },
+  { name: "Left foot - Plantar 5th Metatarsal", pos: [0.13376, 0.03736, 0.04976], rot: [0.09010, 0.11913, -0.01261], scale: [0.05608, 0.05437, 0.20694] },
+  { name: "Left foot - Lateral 5th Metatarsal", pos: [0.16999, 0.06538, 0.04703], rot: [0.16354, 0.17345, 0.00317], scale: [0.04510, 0.04608, 0.21269] },
 
-  // --- RIGHT FOOT (Mirrored) ---
+  // RIGHT FOOT (Mirrored)
   { name: "Right foot - Dorsal Hallux Toenail", pos: [0.11115, 0.09737, 0.45403], rot: [0.00000, -0.01032, 0.00000], scale: [0.06768, 0.02560, 0.07894] },
   { name: "Right foot - Dorsal Hallux Interphalangeal joint", pos: [0.11861, 0.12358, 0.38303], rot: [0.27154, -0.11557, -0.02229], scale: [0.08201, 0.02999, 0.02419] },
   { name: "Right foot - Lateral Hallux Interphalangeal joint", pos: [0.08142, 0.06081, 0.37553], rot: [0.06665, -0.19010, -0.00526], scale: [0.01348, 0.07351, 0.02105] },
-  { name: "Right foot - Medial Hallux Interphalangeal joint", pos: [0.16746, 0.06292, 0.38540], rot: [0.00000, 0.00000, 0.00000], scale: [0.1244, 0.06737, 0.01645] },
+  { name: "Right foot - Medial Hallux Interphalangeal joint", pos: [0.16746, 0.06292, 0.38540], rot: [0.00000, 0.00000, 0.00000], scale: [0.01244, 0.06737, 0.01645] },
   { name: "Right foot - Plantar Hallux Interphalangeal joint", pos: [0.12047, 0.02169, 0.38239], rot: [-0.00636, -0.08653, 0.05221], scale: [0.10000, 0.02114, 0.01632] },
   { name: "Right foot - Hallux Apex", pos: [0.11505, 0.06913, 0.48638], rot: [0.23598, -0.09747, 0.00960], scale: [0.08256, 0.06097, 0.02498] },
   { name: "Right foot - Lateral Hallux", pos: [0.07560, 0.06849, 0.40518], rot: [-0.03458, -0.05742, -0.06437], scale: [0.02562, 0.08314, 0.14051] },
@@ -221,7 +231,17 @@ const PRESET_REGIONS = [
   { name: "Right foot - 5th Dorsal Toe", pos: [-0.15913, 0.07617, 0.30178], rot: [0.27989, 0.05807, 0.12434], scale: [0.03655, 0.01103, 0.07757] },
   { name: "Right foot - 5th Plantar Toe", pos: [-0.14444, 0.04506, 0.31317], rot: [0.29406, -0.00005, -0.00027], scale: [0.03439, 0.01723, 0.06627] },
   { name: "Right foot - 5th Medial Toe", pos: [-0.13765, 0.05807, 0.31499], rot: [0.15484, 0.08076, 0.02360], scale: [0.01672, 0.02617, 0.06402] },
-  { name: "Right foot - 5th Lateral Toe", pos: [-0.16575, 0.05852, 0.31868], rot: [0.26492, 0.06765, 0.18791], scale: [0.01318, 0.02775, 0.08480] }
+  { name: "Right foot - 5th Lateral Toe", pos: [-0.16575, 0.05852, 0.31868], rot: [0.26492, 0.06765, 0.18791], scale: [0.01318, 0.02775, 0.08480] },
+  { name: "Right foot - Plantar 4th Metatarsophalangeal joint", pos: [-0.09358, 0.02514, 0.27015], rot: [-0.01038, -0.07019, -0.04787], scale: [0.05265, 0.06951, 0.07306] },
+  { name: "Right foot - Dorsal 4th Metatarsophalangeal joint", pos: [-0.10658, 0.13172, 0.25953], rot: [0.31958, 0.01414, 0.01277], scale: [0.05724, 0.10000, 0.08049] },
+  { name: "Right foot - Dorsal 5th Metatarsophalangeal joint", pos: [-0.16098, 0.12258, 0.20810], rot: [0.22476, 0.09131, 0.07091], scale: [0.06064, 0.10000, 0.12244] },
+  { name: "Right foot - Plantar 5th Metatarsophalangeal joint", pos: [-0.15671, 0.02905, 0.20695], rot: [-0.01479, 0.07405, 0.15925], scale: [0.05707, 0.05933, 0.15656] },
+  { name: "Right foot - Lateral 5th Metatarsophalangeal joint", pos: [-0.18809, 0.06346, 0.19148], rot: [0.05798, -0.04696, 0.17125], scale: [0.05131, 0.04416, 0.10642] },
+  { name: "Right foot - Dorsal 4th Metatarsal", pos: [-0.09982, 0.14247, 0.11031], rot: [0.36551, 0.02976, 0.06092], scale: [0.04942, 0.05673, 0.23769] },
+  { name: "Right foot - Dorsal 5th Metatarsal", pos: [-0.15384, 0.10360, 0.06758], rot: [0.16690, -0.06165, 0.01446], scale: [0.04858, 0.08361, 0.23036] },
+  { name: "Right foot - Plantar 4th Metatarsal", pos: [-0.08627, 0.02601, 0.10097], rot: [0.09636, -0.04298, -0.00013], scale: [0.05133, 0.10000, 0.26879] },
+  { name: "Right foot - Plantar 5th Metatarsal", pos: [-0.13376, 0.03736, 0.04976], rot: [0.09010, -0.11913, 0.01261], scale: [0.05608, 0.05437, 0.20694] },
+  { name: "Right foot - Lateral 5th Metatarsal", pos: [-0.16999, 0.06538, 0.04703], rot: [0.16354, -0.17345, -0.00317], scale: [0.04510, 0.04608, 0.21269] }
 ];
 
 const urls = {
